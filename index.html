@@ -35,15 +35,40 @@
   }
 
   header {
+    position: relative;
     max-width: 1400px;
     margin: 0 auto 20px;
     text-align: center;
+  }
+  .header-turtle {
+    display: block;
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 6px;
+    filter: drop-shadow(0 3px 6px rgba(6,59,82,0.18));
   }
   header h1 {
     margin: 0 0 6px;
     font-size: clamp(1.4rem, 2.6vw, 2.1rem);
     color: var(--deep);
     letter-spacing: 0.2px;
+  }
+
+  /* Decorative faint turtles behind everything */
+  .watermark {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .watermark .wm { position: absolute; }
+  .watermark .wm1 { top: -50px;  left: -70px;  width: 320px; height: 320px; opacity: 0.07; transform: rotate(-18deg); }
+  .watermark .wm2 { top: 22%;    right: -90px; width: 420px; height: 420px; opacity: 0.06; transform: rotate(24deg); }
+  .watermark .wm3 { bottom: -70px; left: 8%;   width: 300px; height: 300px; opacity: 0.06; transform: rotate(12deg); }
+  .watermark .wm4 { bottom: 6%;  right: 12%;   width: 200px; height: 200px; opacity: 0.05; transform: rotate(-28deg); }
+  @media (max-width: 700px) {
+    .watermark .wm2, .watermark .wm4 { display: none; }
   }
   header p {
     margin: 0 auto;
@@ -235,7 +260,56 @@
 </head>
 <body>
 
+<!-- ===================================================================
+     Reusable cartoon sea-turtle (top-down). Defined once as a <symbol>
+     and referenced via <use> in the header and the background watermark.
+     =================================================================== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="turtle" viewBox="0 0 120 120">
+    <g stroke="#0b6b73" stroke-width="1.5" stroke-linejoin="round">
+      <!-- rear flippers -->
+      <ellipse cx="34" cy="95" rx="12" ry="8" transform="rotate(35 34 95)" fill="#0e8790"/>
+      <ellipse cx="86" cy="95" rx="12" ry="8" transform="rotate(-35 86 95)" fill="#0e8790"/>
+      <!-- front flippers -->
+      <ellipse cx="19" cy="47" rx="18" ry="10" transform="rotate(-32 19 47)" fill="#0e8790"/>
+      <ellipse cx="101" cy="47" rx="18" ry="10" transform="rotate(32 101 47)" fill="#0e8790"/>
+      <!-- tail -->
+      <path d="M60 99 l6 12 h-12 z" fill="#0e8790"/>
+      <!-- head -->
+      <ellipse cx="60" cy="15" rx="11" ry="13" fill="#0e8790"/>
+      <!-- carapace (outer rim + inner) -->
+      <ellipse cx="60" cy="62" rx="37" ry="41" fill="#16a39a"/>
+      <ellipse cx="60" cy="62" rx="29" ry="33" fill="#1fb5aa" stroke="none"/>
+    </g>
+    <!-- eyes -->
+    <circle cx="55" cy="13" r="2.2" fill="#083b41"/>
+    <circle cx="65" cy="13" r="2.2" fill="#083b41"/>
+    <!-- central scutes (diamonds) -->
+    <g fill="#8fe6da" opacity="0.6">
+      <path d="M60 33 l10 12 -10 12 -10 -12 z"/>
+      <path d="M60 57 l11 13 -11 13 -11 -13 z"/>
+      <path d="M60 84 l8 9 -8 9 -8 -9 z"/>
+    </g>
+    <!-- side scute hints -->
+    <g fill="none" stroke="#0e7c86" stroke-width="1.2" opacity="0.5">
+      <path d="M32 60 q10 -2 12 -14"/>
+      <path d="M88 60 q-10 -2 -12 -14"/>
+      <path d="M34 74 q9 2 12 12"/>
+      <path d="M86 74 q-9 2 -12 12"/>
+    </g>
+  </symbol>
+</svg>
+
+<!-- Faint background turtles (decorative watermark) -->
+<div class="watermark" aria-hidden="true">
+  <svg class="wm wm1"><use href="#turtle"/></svg>
+  <svg class="wm wm2"><use href="#turtle"/></svg>
+  <svg class="wm wm3"><use href="#turtle"/></svg>
+  <svg class="wm wm4"><use href="#turtle"/></svg>
+</div>
+
 <header>
+  <svg class="header-turtle" aria-hidden="true"><use href="#turtle"/></svg>
   <h1>Loggerhead Sea Turtle Conservation</h1>
   <p>
     This proof of concept has been built to demonstrate how conservation efforts could be
