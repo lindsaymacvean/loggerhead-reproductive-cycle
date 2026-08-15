@@ -296,15 +296,38 @@
         <input type="range" id="s_poll" min="0" max="100" step="1" value="40" />
       </div>
 
+      <div class="control">
+        <label for="s_poachm">Poaching reduction (juveniles/adults) <em>(baseline loss 10%)</em>
+          <span class="val" id="v_poachm">40%</span>
+        </label>
+        <input type="range" id="s_poachm" min="0" max="100" step="1" value="40" />
+      </div>
+
+      <div class="control">
+        <label for="s_erosion">Beach-erosion reduction <em>(baseline loss 15%)</em>
+          <span class="val" id="v_erosion">30%</span>
+        </label>
+        <input type="range" id="s_erosion" min="0" max="100" step="1" value="30" />
+      </div>
+
+      <div class="control">
+        <label for="s_od">Obstruction &amp; disturbance reduction <em>(baseline loss 10% each)</em>
+          <span class="val" id="v_od">30%</span>
+        </label>
+        <input type="range" id="s_od" min="0" max="100" step="1" value="30" />
+      </div>
+
       <button class="reset" id="resetBtn" type="button">Reset to defaults</button>
 
       <p class="hint">
         Each slider is expressed <strong>relative to the baseline</strong> diagram on the left:
         it reduces that stage's baseline loss by the shown percentage. <strong>0% = identical to
         the baseline</strong>; 100% = that loss fully eliminated. Losses without a slider
-        (beach predators, aging, fertility, nesting hazards) stay at their baseline rate, which is
-        why substantial cumulative mortality remains. Every flow's width equals the number of turtles,
-        so both diagrams stay mass-conserving.
+        (beach predators, aging, fertility) stay at their baseline rate.
+        Every spoke's width equals the number of turtles, so both diagrams stay mass-conserving &mdash;
+        note that improving an <em>early</em> stage (e.g. egg protection) lets more turtles reach later
+        stages, so the <em>counts</em> lost to later threats can rise even though their <em>rate</em> is
+        unchanged. That is expected, and shows where the next bottleneck appears.
       </p>
     </div>
   </div>
@@ -562,52 +585,47 @@ function conservationRates(s) {
 
     // Boat-strike reduction; pollution & disease share one slider.
     boat:   baseline.boat * (1 - s.boat),
-    poachM: baseline.poachM,
+    poachM: baseline.poachM * (1 - s.poachm),   // poaching of juveniles/adults
     poll:   baseline.poll * (1 - s.poll),
     dis:    baseline.dis  * (1 - s.poll),
     aging:  baseline.aging,
 
-    // Uncontrolled downstream losses stay at baseline.
+    // Mating-pool loss stays at baseline (no slider).
     fert:    baseline.fert,
-    erosion: baseline.erosion,
-    obstr:   baseline.obstr,
-    dist:    baseline.dist
+
+    // Nesting-beach hazards.
+    erosion: baseline.erosion * (1 - s.erosion),
+    obstr:   baseline.obstr * (1 - s.od),        // obstruction + disturbance
+    dist:    baseline.dist  * (1 - s.od)
   };
 }
 
-/* ---- Default slider positions (a realistic "good conservation" state)
-   egg 70%   -> egg loss 45% * 0.30 = 13.5%  ->  ~86% hatch (~865)
-   light 67% -> 30% * 0.33 ≈ 9.9%
-   boat 42%  -> 12% * 0.58 ≈ 7.0%
-   poll 40%  -> 10% * 0.60 = 6.0% each                                  */
-const SLIDER_DEFAULTS = { egg: 70, light: 67, boat: 42, poll: 40 };
+/* ---- Default slider positions (a realistic "good conservation" state).
+   Each maps slider id -> percent reduction of that baseline loss. ------ */
+const SLIDER_DEFAULTS = {
+  s_egg: 70, s_light: 67, s_boat: 42, s_poll: 40,
+  s_poachm: 40, s_erosion: 30, s_od: 30
+};
+
+// slider id -> the key expected by conservationRates()
+const SLIDER_KEYS = {
+  s_egg: "egg", s_light: "light", s_boat: "boat", s_poll: "poll",
+  s_poachm: "poachm", s_erosion: "erosion", s_od: "od"
+};
 
 /* =====================================================================
    WIRE UP THE SLIDERS
    ===================================================================== */
-const SLIDER_IDS = ["s_egg", "s_light", "s_boat", "s_poll"];
+const SLIDER_IDS = Object.keys(SLIDER_DEFAULTS);
 
 function syncFromSliders() {
-  const egg   = +document.getElementById("s_egg").value;    // 0..100
-  const light = +document.getElementById("s_light").value;  // 0..100
-  const boat  = +document.getElementById("s_boat").value;   // 0..100
-  const poll  = +document.getElementById("s_poll").value;   // 0..100
-
-  // Update the little value badges.
-  document.getElementById("v_egg").textContent   = egg + "%";
-  document.getElementById("v_light").textContent = light + "%";
-  document.getElementById("v_boat").textContent  = boat + "%";
-  document.getElementById("v_poll").textContent  = poll + "%";
-
-  // Build the conservation loss-rates from the baseline + reductions.
-  const rates = conservationRates({
-    egg:   egg / 100,
-    light: light / 100,
-    boat:  boat / 100,
-    poll:  poll / 100
+  const s = {};
+  SLIDER_IDS.forEach(id => {
+    const pct = +document.getElementById(id).value;               // 0..100
+    document.getElementById("v_" + id.slice(2)).textContent = pct + "%";
+    s[SLIDER_KEYS[id]] = pct / 100;                               // fraction
   });
-
-  renderCircle("chartConservation", rates);
+  renderCircle("chartConservation", conservationRates(s));
 }
 
 // Attach listeners to every slider for instant redraw.
@@ -617,10 +635,7 @@ SLIDER_IDS.forEach(id => {
 
 // Reset button.
 document.getElementById("resetBtn").addEventListener("click", () => {
-  document.getElementById("s_egg").value   = SLIDER_DEFAULTS.egg;
-  document.getElementById("s_light").value = SLIDER_DEFAULTS.light;
-  document.getElementById("s_boat").value  = SLIDER_DEFAULTS.boat;
-  document.getElementById("s_poll").value  = SLIDER_DEFAULTS.poll;
+  SLIDER_IDS.forEach(id => { document.getElementById(id).value = SLIDER_DEFAULTS[id]; });
   syncFromSliders();
 });
 
