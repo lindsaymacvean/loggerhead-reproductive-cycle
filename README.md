@@ -37,3 +37,9 @@ Just open `index.html` in any modern browser.
 
 > The figures are illustrative defaults for a proof of concept, not
 > peer-reviewed population data.
+
+## License
+
+Released into the **public domain** under [The Unlicense](LICENSE). You are
+free to copy, modify, publish, use, sell or distribute this code for any
+purpose, with **no restrictions** and no attribution required.

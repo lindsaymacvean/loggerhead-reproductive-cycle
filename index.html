@@ -256,6 +256,17 @@
   }
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
   .swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+
+  .page-footer {
+    max-width: 900px;
+    margin: 24px auto 8px;
+    text-align: center;
+    font-size: 0.78rem;
+    color: #5a7d85;
+    line-height: 1.5;
+  }
+  .page-footer a { color: var(--sea); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+  .page-footer a:hover { color: var(--wave); }
 </style>
 </head>
 <body>
@@ -413,6 +424,13 @@
   <span><i class="swatch" style="background:#e8795a"></i> Losses (spokes)</span>
   <span><i class="swatch" style="background:#2ea066"></i> Return to nest &rarr; next cycle</span>
 </div>
+
+<footer class="page-footer">
+  Open source &mdash; released into the public domain under
+  <a href="https://github.com/lindsaymacvean/loggerhead-reproductive-cycle/blob/main/LICENSE" target="_blank" rel="noopener">The Unlicense</a>.
+  Copy, modify and reuse freely, no restrictions.
+  <a href="https://github.com/lindsaymacvean/loggerhead-reproductive-cycle" target="_blank" rel="noopener">View / fork the source on GitHub</a>.
+</footer>
 
 <script>
 /* =====================================================================
