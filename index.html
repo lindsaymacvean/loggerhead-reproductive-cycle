@@ -85,6 +85,34 @@
   }
   header p a:hover { color: var(--wave); }
 
+  /* Display-mode toggle (counts vs % per stage) */
+  .mode-toggle {
+    max-width: 1600px;
+    margin: 0 auto 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .mode-toggle .mode-label { font-size: 0.85rem; color: #4a6d76; margin-right: 2px; }
+  .mode-btn {
+    padding: 7px 16px;
+    font-size: 0.85rem;
+    color: var(--deep);
+    background: rgba(255,255,255,0.8);
+    border: 1px solid rgba(14,124,134,0.35);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .mode-btn:hover { border-color: var(--wave); }
+  .mode-btn.active {
+    background: var(--sea);
+    color: #fff;
+    border-color: var(--sea);
+    font-weight: 600;
+  }
+
   /* Layout: diagrams stacked full-width so each has plenty of horizontal
      room (a wide, landscape Sankey is far easier to read than a cramped,
      near-square one). */
@@ -333,6 +361,12 @@
   </p>
 </header>
 
+<div class="mode-toggle" role="group" aria-label="Display mode">
+  <span class="mode-label">Show:</span>
+  <button type="button" class="mode-btn active" data-mode="counts">Turtle counts</button>
+  <button type="button" class="mode-btn" data-mode="percent">% lost per stage</button>
+</div>
+
 <div class="grid">
 
   <!-- LEFT: Baseline / Low conservation (static) -->
@@ -409,10 +443,12 @@
         it reduces that stage's baseline loss by the shown percentage. <strong>0% = identical to
         the baseline</strong>; 100% = that loss fully eliminated. Losses without a slider
         (beach predators, aging, fertility) stay at their baseline rate.
-        Every spoke's width equals the number of turtles, so both diagrams stay mass-conserving &mdash;
-        note that improving an <em>early</em> stage (e.g. egg protection) lets more turtles reach later
-        stages, so the <em>counts</em> lost to later threats can rise even though their <em>rate</em> is
-        unchanged. That is expected, and shows where the next bottleneck appears.
+        In <strong>Turtle counts</strong> mode each spoke's width equals the number of turtles, so
+        improving an <em>early</em> stage (e.g. egg protection) lets more turtles reach later stages &mdash;
+        the <em>counts</em> lost to later threats can then rise even though their <em>rate</em> is unchanged.
+        That is expected, and shows where the next bottleneck appears. Switch to
+        <strong>% lost per stage</strong> (top toggle) to see each stage's loss <em>rate</em> instead, where
+        a spoke only changes when its own slider moves.
       </p>
     </div>
   </div>
@@ -547,15 +583,23 @@ const D2R = d => d * Math.PI / 180;
 const STEP = 360 / N_STAGES;                // angle between stages
 const ANG = i => -90 + i * STEP;            // stage i angle (deg); Eggs at top
 const POL = (rr, d) => [CX + rr * Math.cos(D2R(d)), CY + rr * Math.sin(D2R(d))];
-const WID = v => (v > 0.05 ? Math.max(v * PXK, 2) : 0);   // flow width in px
+const PCT_PX = 60;                          // px per 100% (percent-mode scale)
+const WID  = v    => (v > 0.05    ? Math.max(v * PXK, 2)      : 0);  // counts width
+const WIDp = rate => (rate > 0.001 ? Math.max(rate * PCT_PX, 2) : 0);// percent width
+const PF   = rate => Math.round(rate * 100) + "%";                   // percent label
 
-function renderCircle(divId, rates) {
+/* mode = "counts" (turtle numbers, mass-conserving) or
+          "percent" (loss RATE per stage — a spoke only changes when its
+                     own slider moves, independent of upstream survival). */
+function renderCircle(divId, rates, mode) {
+  const isPct = (mode === "percent");
   const { throughput, ring, losses, nesters } = computeFlows(rates);
   let ringStr = "", spokeStr = "", nodeStr = "", labelStr = "";
 
   /* --- happy-path ring segments (flow CLOCKWISE, thinning as we go) --- */
   for (let i = 0; i < N_STAGES; i++) {
-    const wpx = WID(ring[i]);
+    const rate = throughput[i] > 0 ? ring[i] / throughput[i] : 0;   // stage survival rate
+    const wpx = isPct ? WIDp(rate) : WID(ring[i]);
     if (wpx <= 0) continue;
     const [x0, y0] = POL(RING_R, ANG(i));
     const [x1, y1] = POL(RING_R, ANG(i + 1));
@@ -567,6 +611,7 @@ function renderCircle(divId, rates) {
 
   /* --- loss spokes radiating outward at each stage + their labels --- */
   for (let i = 0; i < N_STAGES; i++) {
+    const inflow = throughput[i];
     const arr = losses[i].filter(l => l.value > 0.05);
     const n = arr.length;
     if (!n) continue;
@@ -574,10 +619,12 @@ function renderCircle(divId, rates) {
     const spread = n === 1 ? 0 : Math.min(26, 11 * (n - 1));
     const [sx, sy] = POL(RING_R, base);      // spokes fan out from the node
     arr.forEach((l, j) => {
+      const rate = inflow > 0 ? l.value / inflow : 0;
+      const wpx = isPct ? WIDp(rate) : WID(l.value);
       const la = n === 1 ? base : base - spread + (2 * spread) * (j / (n - 1));
       const [ex, ey] = POL(RING_R + SPOKE, la);
       spokeStr += `<path d="M${sx.toFixed(1)},${sy.toFixed(1)} L${ex.toFixed(1)},${ey.toFixed(1)}" `
-        + `fill="none" stroke="${C_LOSS}" stroke-width="${WID(l.value).toFixed(1)}" `
+        + `fill="none" stroke="${C_LOSS}" stroke-width="${wpx.toFixed(1)}" `
         + `stroke-linecap="round" opacity="0.8"/>`;
       spokeStr += `<circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="3.2" fill="${C_LOSS}"/>`;
       const [lx, ly] = POL(RING_R + SPOKE + 12, la);
@@ -585,7 +632,7 @@ function renderCircle(divId, rates) {
       const anchor = c > 0.2 ? "start" : c < -0.2 ? "end" : "middle";
       labelStr += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" font-size="15">`
         + `<tspan class="loss-name">${l.name}</tspan>`
-        + `<tspan class="loss-val" x="${lx.toFixed(1)}" dy="17">${NF.format(l.value)}</tspan>`
+        + `<tspan class="loss-val" x="${lx.toFixed(1)}" dy="17">${isPct ? PF(rate) : NF.format(l.value)}</tspan>`
         + `</text>`;
     });
   }
@@ -594,23 +641,29 @@ function renderCircle(divId, rates) {
   for (let i = 0; i < N_STAGES; i++) {
     const [nx, ny] = POL(RING_R, ANG(i));
     const tp = throughput[i];
-    const nr = Math.max(8, Math.min(24, 6 + Math.sqrt(tp) * 0.5));
+    // In percent mode nodes are a fixed size so they don't change with upstream.
+    const nr = isPct ? 13 : Math.max(8, Math.min(24, 6 + Math.sqrt(tp) * 0.5));
     const fill = i === 0 ? C_EGG : i === N_STAGES - 1 ? C_NESTER : C_SEA;
     nodeStr += `<circle cx="${nx.toFixed(1)}" cy="${ny.toFixed(1)}" r="${nr.toFixed(1)}" `
       + `fill="${fill}" stroke="#ffffff" stroke-width="3"/>`;
+    // Percent mode shows the stage's own survival rate; counts mode the population.
+    const survRate = tp > 0 ? ring[i] / tp : 0;
+    const nodeVal = isPct ? PF(survRate) + " survive" : NF.format(tp);
     const [lx, ly] = POL(RING_R - 46, ANG(i));
     labelStr += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="16">`
       + `<tspan class="node-name">${STAGE_NAMES[i]}</tspan>`
-      + `<tspan class="node-val" x="${lx.toFixed(1)}" dy="19">${NF.format(tp)}</tspan>`
+      + `<tspan class="node-val" x="${lx.toFixed(1)}" dy="19">${nodeVal}</tspan>`
       + `</text>`;
   }
 
-  /* --- centre KPI: surviving nesters per 1000 eggs --- */
-  const nest = nesters;
-  const centreStr =
-    `<text x="${CX}" y="${CY - 20}" text-anchor="middle" font-size="16" class="kpi-cap">Successful nesters</text>`
-    + `<text x="${CX}" y="${CY + 20}" text-anchor="middle" font-size="40" class="kpi-num">${NF.format(nest)}</text>`
-    + `<text x="${CX}" y="${CY + 46}" text-anchor="middle" font-size="14" class="kpi-cap">per 1000 eggs laid</text>`;
+  /* --- centre KPI --- */
+  const centreStr = isPct
+    ? `<text x="${CX}" y="${CY - 20}" text-anchor="middle" font-size="16" class="kpi-cap">Overall</text>`
+      + `<text x="${CX}" y="${CY + 20}" text-anchor="middle" font-size="40" class="kpi-num">${PF(nesters / 1000)}</text>`
+      + `<text x="${CX}" y="${CY + 46}" text-anchor="middle" font-size="14" class="kpi-cap">of eggs reach nesting</text>`
+    : `<text x="${CX}" y="${CY - 20}" text-anchor="middle" font-size="16" class="kpi-cap">Successful nesters</text>`
+      + `<text x="${CX}" y="${CY + 20}" text-anchor="middle" font-size="40" class="kpi-num">${NF.format(nesters)}</text>`
+      + `<text x="${CX}" y="${CY + 46}" text-anchor="middle" font-size="14" class="kpi-cap">per 1000 eggs laid</text>`;
 
   // Draw order: ring, spokes, nodes, centre, then labels on top.
   document.getElementById(divId).innerHTML =
@@ -710,6 +763,9 @@ const SLIDER_KEYS = {
    ===================================================================== */
 const SLIDER_IDS = Object.keys(SLIDER_DEFAULTS);
 
+// Current display mode: "counts" or "percent".
+let displayMode = "counts";
+
 function syncFromSliders() {
   const s = {};
   SLIDER_IDS.forEach(id => {
@@ -717,7 +773,13 @@ function syncFromSliders() {
     document.getElementById("v_" + id.slice(2)).textContent = pct + "%";
     s[SLIDER_KEYS[id]] = pct / 100;                               // fraction
   });
-  renderCircle("chartConservation", conservationRates(s));
+  renderCircle("chartConservation", conservationRates(s), displayMode);
+}
+
+// Redraw BOTH diagrams (baseline + conservation) in the current mode.
+function drawAll() {
+  renderCircle("chartBaseline", baseline, displayMode);
+  syncFromSliders();
 }
 
 // Attach listeners to every slider for instant redraw.
@@ -732,10 +794,21 @@ document.getElementById("resetBtn").addEventListener("click", () => {
 });
 
 /* =====================================================================
+   DISPLAY-MODE TOGGLE (turtle counts  vs  % lost per stage)
+   ===================================================================== */
+document.querySelectorAll(".mode-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    displayMode = btn.dataset.mode;
+    document.querySelectorAll(".mode-btn").forEach(b =>
+      b.classList.toggle("active", b === btn));
+    drawAll();
+  });
+});
+
+/* =====================================================================
    INITIAL DRAW
    ===================================================================== */
-renderCircle("chartBaseline", baseline);   // left = raw baseline rates
-syncFromSliders();                          // right = baseline + reductions
+drawAll();   // baseline (left) + conservation (right) in the current mode
 
 /* =====================================================================
    MAXIMISE TOGGLES
