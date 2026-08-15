@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Loggerhead Sea Turtle — Reproductive Cycle</title>
+
+<!-- No external dependencies: the radial diagram is hand-drawn SVG. -->
+
+<style>
+  /* ---------------------------------------------------------------
+     Ocean-themed palette
+     --------------------------------------------------------------- */
+  :root {
+    --deep:    #063b52;   /* deep sea blue    */
+    --sea:     #0e7c86;   /* teal             */
+    --wave:    #1fa3ad;   /* bright teal      */
+    --foam:    #d5f2f0;   /* pale foam        */
+    --sand:    #f4e7c9;   /* warm sand        */
+    --sand-2:  #e8d6a8;   /* deeper sand      */
+    --coral:   #e8795a;   /* loss / coral     */
+    --ink:     #0b2b38;   /* text             */
+    --panel:   rgba(255,255,255,0.75);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: linear-gradient(160deg, #e9f7f6 0%, #cfeeef 40%, #bfe3e6 100%);
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  header {
+    max-width: 1400px;
+    margin: 0 auto 20px;
+    text-align: center;
+  }
+  header h1 {
+    margin: 0 0 6px;
+    font-size: clamp(1.4rem, 2.6vw, 2.1rem);
+    color: var(--deep);
+    letter-spacing: 0.2px;
+  }
+  header p {
+    margin: 0 auto;
+    max-width: 780px;
+    color: #2f5b66;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  /* Layout: diagrams stacked full-width so each has plenty of horizontal
+     room (a wide, landscape Sankey is far easier to read than a cramped,
+     near-square one). */
+  .grid {
+    max-width: 1600px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .card {
+    position: relative;
+    background: var(--panel);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(14,124,134,0.18);
+    border-radius: 16px;
+    padding: 16px 16px 8px;
+    box-shadow: 0 8px 24px rgba(6,59,82,0.10);
+  }
+  .card h2 {
+    margin: 0 0 2px;
+    font-size: 1.15rem;
+    color: var(--deep);
+    text-align: center;
+  }
+  .card .subtitle {
+    margin: 0 0 8px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: #4a6d76;
+  }
+
+  /* A radial cycle is roughly square; cap the width and centre it so it
+     stays a readable size on very wide screens. */
+  .chart {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    aspect-ratio: 1300 / 1040;
+    height: auto;
+  }
+
+  /* Hand-drawn SVG styling (shared by both diagrams) */
+  .circle-svg { width: 100%; height: 100%; display: block; }
+  .circle-svg text {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    fill: #0b2b38;
+    paint-order: stroke;          /* draw the halo behind the glyphs */
+    stroke: #eef9f7;
+    stroke-width: 3.4px;
+    stroke-linejoin: round;
+  }
+  .circle-svg .node-name { font-weight: 700; fill: #063b52; }
+  .circle-svg .node-val  { font-weight: 700; fill: #0e7c86; }
+  .circle-svg .loss-name { fill: #b4472f; }
+  .circle-svg .loss-val  { fill: #8f3620; font-weight: 700; }
+  .circle-svg .kpi-cap   { fill: #5a7d85; stroke-width: 2.6px; }
+  .circle-svg .kpi-num   { fill: #0e7c86; font-weight: 800; stroke: #ffffff; stroke-width: 4px; }
+
+  /* Fullscreen toggle button (top-right of each card) */
+  .fs-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    color: var(--deep);
+    background: rgba(255,255,255,0.85);
+    border: 1px solid rgba(14,124,134,0.35);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .fs-btn:hover { background: #fff; border-color: var(--wave); }
+
+  /* Maximised card: fills the whole viewport. Uses fixed positioning
+     (not the Fullscreen API) so it works even inside embedded browsers. */
+  .card.maximized {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    margin: 0;
+    border-radius: 0;
+    padding: 20px 24px;
+    overflow: auto;
+    background: linear-gradient(160deg, #eaf7f6 0%, #d6efef 100%);
+  }
+  .card.maximized .chart { max-width: none; width: auto; height: calc(100vh - 96px); }
+  /* The conservation card also holds the controls, so leave room for them. */
+  #cardConservation.maximized .chart { height: calc(100vh - 430px); min-height: 360px; }
+
+  /* Controls panel */
+  .controls {
+    margin-top: 8px;
+    padding: 14px 14px 6px;
+    background: rgba(255,255,255,0.55);
+    border: 1px dashed rgba(14,124,134,0.35);
+    border-radius: 12px;
+  }
+  .controls h3 {
+    margin: 0 0 10px;
+    font-size: 0.95rem;
+    color: var(--sea);
+  }
+  .control {
+    margin-bottom: 12px;
+  }
+  .control label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+    color: var(--ink);
+  }
+  .control label em {
+    font-style: normal;
+    font-size: 0.72rem;
+    color: #7a95a0;
+    margin-left: 4px;
+  }
+  .control label .val {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--sea);
+    background: var(--foam);
+    padding: 1px 8px;
+    border-radius: 999px;
+    min-width: 46px;
+    text-align: center;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--wave);
+    cursor: pointer;
+  }
+  .hint {
+    font-size: 0.75rem;
+    color: #5a7d85;
+    line-height: 1.45;
+    margin: 6px 0 4px;
+  }
+  .reset {
+    display: inline-block;
+    margin: 4px 0 8px;
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    color: #fff;
+    background: var(--sea);
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .reset:hover { background: var(--wave); }
+
+  .legend {
+    max-width: 1400px;
+    margin: 18px auto 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: #35636d;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Loggerhead Sea Turtle — Reproductive Cycle</h1>
+  <p>
+    Every cycle starts with <strong>1,000 eggs laid</strong>. Follow the teal <strong>survival ring</strong>
+    clockwise from the top: it thins at each stage as turtles are lost to the coral <strong>spokes</strong>,
+    until the surviving females return along the green arc to seed the next generation. Compare a
+    low-conservation baseline against an interactive conservation scenario you can tune with the sliders.
+  </p>
+</header>
+
+<div class="grid">
+
+  <!-- LEFT: Baseline / Low conservation (static) -->
+  <div class="card" id="cardBaseline">
+    <button class="fs-btn" data-card="cardBaseline">&#9974; Fullscreen</button>
+    <h2>Baseline &mdash; Low Conservation</h2>
+    <p class="subtitle">High natural losses, no active protection</p>
+    <div id="chartBaseline" class="chart"></div>
+  </div>
+
+  <!-- RIGHT: Conservation scenario (interactive) -->
+  <div class="card" id="cardConservation">
+    <button class="fs-btn" data-card="cardConservation">&#9974; Fullscreen</button>
+    <h2>Conservation Scenario</h2>
+    <p class="subtitle">Adjust the sliders to model interventions</p>
+    <div id="chartConservation" class="chart"></div>
+
+    <div class="controls">
+      <h3>Conservation controls</h3>
+
+      <div class="control">
+        <label for="s_egg">Egg protection &amp; hatching <em>(baseline loss 45%)</em>
+          <span class="val" id="v_egg">70%</span>
+        </label>
+        <input type="range" id="s_egg" min="0" max="100" step="1" value="70" />
+      </div>
+
+      <div class="control">
+        <label for="s_light">Light-pollution control <em>(baseline loss 30%)</em>
+          <span class="val" id="v_light">67%</span>
+        </label>
+        <input type="range" id="s_light" min="0" max="100" step="1" value="67" />
+      </div>
+
+      <div class="control">
+        <label for="s_boat">Boat-strike reduction <em>(baseline loss 12%)</em>
+          <span class="val" id="v_boat">42%</span>
+        </label>
+        <input type="range" id="s_boat" min="0" max="100" step="1" value="42" />
+      </div>
+
+      <div class="control">
+        <label for="s_poll">Pollution &amp; disease reduction <em>(baseline loss 10% each)</em>
+          <span class="val" id="v_poll">40%</span>
+        </label>
+        <input type="range" id="s_poll" min="0" max="100" step="1" value="40" />
+      </div>
+
+      <button class="reset" id="resetBtn" type="button">Reset to defaults</button>
+
+      <p class="hint">
+        Each slider is expressed <strong>relative to the baseline</strong> diagram on the left:
+        it reduces that stage's baseline loss by the shown percentage. <strong>0% = identical to
+        the baseline</strong>; 100% = that loss fully eliminated. Losses without a slider
+        (beach predators, aging, fertility, nesting hazards) stay at their baseline rate, which is
+        why substantial cumulative mortality remains. Every flow's width equals the number of turtles,
+        so both diagrams stay mass-conserving.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<div class="legend">
+  <span><i class="swatch" style="background:#0e9aa0"></i> Survival ring (happy path, clockwise)</span>
+  <span><i class="swatch" style="background:#e8795a"></i> Losses (spokes)</span>
+  <span><i class="swatch" style="background:#2ea066"></i> Return to nest &rarr; next cycle</span>
+</div>
+
+<script>
+/* =====================================================================
+   LOGGERHEAD SEA TURTLE — REPRODUCTIVE CYCLE SANKEY
+   ---------------------------------------------------------------------
+   Everything is driven by ONE model: 1,000 eggs flow through a series of
+   life stages. At every stage a fraction is lost to a terminal "loss"
+   node and the remainder flows on to the next survival node.
+
+   To adjust the biology later, edit the loss RATES in the `baseline`
+   object below. Each rate is a fraction (0..1) of the animals ENTERING
+   that stage. The conservation (right) diagram is DERIVED from the
+   baseline by applying multiplicative slider reductions, so the baseline
+   is the single source of truth. Mass conservation is automatic because
+   every survival flow = (inflow − sum of that stage's losses).
+   ===================================================================== */
+
+/* ---- The happy-path stages, in cycle order ------------------------ */
+const STAGE_NAMES = [
+  "Eggs Laid",        // 0  (top of the ring)
+  "Hatchlings",       // 1
+  "Maturing",         // 2  (juveniles -> adults)
+  "Mating Pool",      // 3
+  "Nesting Females"   // 4  survivors loop back to Eggs (next cycle)
+];
+const N_STAGES = STAGE_NAMES.length;
+
+/* ---- Ocean palette ------------------------------------------------- */
+const C_RING   = "#0e9aa0";   // teal survival ring
+const C_RETURN = "#2ea066";   // green "return to nest / next cycle"
+const C_LOSS   = "#e8795a";   // coral losses
+const C_EGG    = "#f0a35a";   // warm sand-orange (eggs node)
+const C_NESTER = "#1fa3ad";   // bright teal (nesters node)
+const C_SEA    = "#0e7c86";   // teal (other stage nodes)
+
+/* ---- Utility ------------------------------------------------------- */
+const NF = new Intl.NumberFormat("en", { maximumFractionDigits: 0 });
+
+/* =====================================================================
+   THE MODEL
+   ---------------------------------------------------------------------
+   Every rate is a LOSS FRACTION of the animals ENTERING that stage.
+   Returns everything the radial diagram needs:
+     throughput[i] : turtles entering happy-path stage i
+     ring[i]       : survivors flowing from stage i to stage i+1
+                     (ring[5] = returning females that seed the next
+                      1000-egg cycle — the green "return" arc)
+     losses[i]     : array of { name, value } peeling off at stage i
+   Mass is conserved at every stage: inflow = onward + sum(losses).
+   ===================================================================== */
+function computeFlows(r) {
+  const EGGS = 1000;
+
+  // Egg stage — only losses are predators + poaching on eggs.
+  const predEgg  = EGGS * r.predEgg;
+  const poachEgg = EGGS * r.poachEgg;
+  const hatchlings = EGGS - predEgg - poachEgg;
+
+  // Hatchling stage (crawl to the sea).
+  const light = hatchlings * r.light;
+  const predH = hatchlings * r.predH;
+  const maturing = hatchlings - light - predH;
+
+  // Maturing stage (years at sea).
+  const boat   = maturing * r.boat;
+  const poachM = maturing * r.poachM;
+  const poll   = maturing * r.poll;
+  const dis    = maturing * r.dis;
+  const age    = maturing * r.aging;
+  const mating = maturing - boat - poachM - poll - dis - age;
+
+  // Mating pool.
+  const fert = mating * r.fert;
+  const returning = mating - fert;
+
+  // Returning females (nesting attempt).
+  const erosion = returning * r.erosion;
+  const obstr   = returning * r.obstr;
+  const dist    = returning * r.dist;
+  const nesters = returning - erosion - obstr - dist;
+
+  return {
+    // turtles entering each stage (Nesting Females = returning to the beach)
+    throughput: [EGGS, hatchlings, maturing, mating, returning],
+    // survivors from stage i -> i+1; the last entry (nesters) loops back to
+    // Eggs and is the count of females that successfully nest / seed next cycle
+    ring: [hatchlings, maturing, mating, returning, nesters],
+    nesters,
+    losses: [
+      [ { name: "Predators", value: predEgg },
+        { name: "Poaching", value: poachEgg } ],
+      [ { name: "Light pollution", value: light },
+        { name: "Predators", value: predH } ],
+      [ { name: "Boat strikes", value: boat },
+        { name: "Poaching", value: poachM },
+        { name: "Pollution & disease", value: poll + dis },
+        { name: "Aging", value: age } ],
+      [ { name: "Fertility issues", value: fert } ],
+      // Nesting Females: hazards at the nesting beach; survivors loop back.
+      [ { name: "Beach erosion", value: erosion },
+        { name: "Obstruction / disturbance", value: obstr + dist } ]
+    ]
+  };
+}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+/* ---- SVG geometry (all in viewBox user units) ---------------------- */
+const VB_W = 1300, VB_H = 1040, CX = 650, CY = 520, RING_R = 255, SPOKE = 150;
+const PXK = 0.046;                          // pixels per turtle (SHARED scale
+                                            // -> both diagrams are comparable)
+const D2R = d => d * Math.PI / 180;
+const STEP = 360 / N_STAGES;                // angle between stages
+const ANG = i => -90 + i * STEP;            // stage i angle (deg); Eggs at top
+const POL = (rr, d) => [CX + rr * Math.cos(D2R(d)), CY + rr * Math.sin(D2R(d))];
+const WID = v => (v > 0.05 ? Math.max(v * PXK, 2) : 0);   // flow width in px
+
+function renderCircle(divId, rates) {
+  const { throughput, ring, losses, nesters } = computeFlows(rates);
+  let ringStr = "", spokeStr = "", nodeStr = "", labelStr = "";
+
+  /* --- happy-path ring segments (flow CLOCKWISE, thinning as we go) --- */
+  for (let i = 0; i < N_STAGES; i++) {
+    const wpx = WID(ring[i]);
+    if (wpx <= 0) continue;
+    const [x0, y0] = POL(RING_R, ANG(i));
+    const [x1, y1] = POL(RING_R, ANG(i + 1));
+    const col = (i === N_STAGES - 1) ? C_RETURN : C_RING;   // last = return arc
+    ringStr += `<path d="M${x0.toFixed(1)},${y0.toFixed(1)} `
+      + `A${RING_R},${RING_R} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)}" `
+      + `fill="none" stroke="${col}" stroke-width="${wpx.toFixed(1)}" opacity="0.85"/>`;
+  }
+
+  /* --- loss spokes radiating outward at each stage + their labels --- */
+  for (let i = 0; i < N_STAGES; i++) {
+    const arr = losses[i].filter(l => l.value > 0.05);
+    const n = arr.length;
+    if (!n) continue;
+    const base = ANG(i);
+    const spread = n === 1 ? 0 : Math.min(26, 11 * (n - 1));
+    const [sx, sy] = POL(RING_R, base);      // spokes fan out from the node
+    arr.forEach((l, j) => {
+      const la = n === 1 ? base : base - spread + (2 * spread) * (j / (n - 1));
+      const [ex, ey] = POL(RING_R + SPOKE, la);
+      spokeStr += `<path d="M${sx.toFixed(1)},${sy.toFixed(1)} L${ex.toFixed(1)},${ey.toFixed(1)}" `
+        + `fill="none" stroke="${C_LOSS}" stroke-width="${WID(l.value).toFixed(1)}" `
+        + `stroke-linecap="round" opacity="0.8"/>`;
+      spokeStr += `<circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="3.2" fill="${C_LOSS}"/>`;
+      const [lx, ly] = POL(RING_R + SPOKE + 12, la);
+      const c = Math.cos(D2R(la));
+      const anchor = c > 0.2 ? "start" : c < -0.2 ? "end" : "middle";
+      labelStr += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" font-size="15">`
+        + `<tspan class="loss-name">${l.name}</tspan>`
+        + `<tspan class="loss-val" x="${lx.toFixed(1)}" dy="17">${NF.format(l.value)}</tspan>`
+        + `</text>`;
+    });
+  }
+
+  /* --- stage nodes + their labels (labels sit just inside the ring) --- */
+  for (let i = 0; i < N_STAGES; i++) {
+    const [nx, ny] = POL(RING_R, ANG(i));
+    const tp = throughput[i];
+    const nr = Math.max(8, Math.min(24, 6 + Math.sqrt(tp) * 0.5));
+    const fill = i === 0 ? C_EGG : i === N_STAGES - 1 ? C_NESTER : C_SEA;
+    nodeStr += `<circle cx="${nx.toFixed(1)}" cy="${ny.toFixed(1)}" r="${nr.toFixed(1)}" `
+      + `fill="${fill}" stroke="#ffffff" stroke-width="3"/>`;
+    const [lx, ly] = POL(RING_R - 46, ANG(i));
+    labelStr += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="16">`
+      + `<tspan class="node-name">${STAGE_NAMES[i]}</tspan>`
+      + `<tspan class="node-val" x="${lx.toFixed(1)}" dy="19">${NF.format(tp)}</tspan>`
+      + `</text>`;
+  }
+
+  /* --- centre KPI: surviving nesters per 1000 eggs --- */
+  const nest = nesters;
+  const centreStr =
+    `<text x="${CX}" y="${CY - 20}" text-anchor="middle" font-size="16" class="kpi-cap">Successful nesters</text>`
+    + `<text x="${CX}" y="${CY + 20}" text-anchor="middle" font-size="40" class="kpi-num">${NF.format(nest)}</text>`
+    + `<text x="${CX}" y="${CY + 46}" text-anchor="middle" font-size="14" class="kpi-cap">per 1000 eggs laid</text>`;
+
+  // Draw order: ring, spokes, nodes, centre, then labels on top.
+  document.getElementById(divId).innerHTML =
+    `<svg class="circle-svg" viewBox="0 0 ${VB_W} ${VB_H}" preserveAspectRatio="xMidYMid meet">`
+    + ringStr + spokeStr + nodeStr + centreStr + labelStr
+    + `</svg>`;
+}
+
+/* =====================================================================
+   THE BASELINE (reference scenario)
+   ---------------------------------------------------------------------
+   >>> EDIT THESE NUMBERS to change the biology. <<<
+   Every value is a LOSS RATE (fraction 0..1) of the animals entering
+   that stage. The conservation diagram is derived from THIS baseline by
+   applying the slider reductions below, so the baseline is the single
+   source of truth for both diagrams.
+   ===================================================================== */
+const baseline = {
+  // Egg stage — the ONLY egg losses are predators + poaching.
+  // 24.75% + 20.25% = 45% total loss  ->  55% hatch (550 hatchlings).
+  predEgg:  0.2475,
+  poachEgg: 0.2025,
+
+  // Hatchling stage (beach crawl to the sea).
+  light: 0.30,   // light pollution / disorientation
+  predH: 0.20,   // beach predators on hatchlings  (no slider)
+
+  // Maturing stage (years at sea).
+  boat:   0.12,  // boat strikes
+  poachM: 0.10,  // poaching of juveniles/adults   (no slider)
+  poll:   0.10,  // pollution
+  dis:    0.10,  // disease (diet / fish)
+  aging:  0.08,  // aging mortality                (no slider)
+
+  // Mating pool.
+  fert: 0.20,    // fertility issues               (no slider)
+
+  // Returning females (nesting hazards).
+  erosion: 0.15, // beach erosion                  (no slider)
+  obstr:   0.10, // obstruction                    (no slider)
+  dist:    0.10  // disturbance                    (no slider)
+};
+
+/* =====================================================================
+   BASELINE-RELATIVE CONSERVATION
+   ---------------------------------------------------------------------
+   Each slider is a MULTIPLICATIVE reduction of the corresponding
+   baseline loss:  conservationRate = baselineRate * (1 - slider).
+     slider = 0    -> identical to baseline
+     slider = 1    -> that loss fully eliminated
+   `egg` collapses the old hatching-success + egg-protection controls
+   into one knob that scales BOTH egg loss channels (predators + poaching).
+   Losses without a slider stay at their baseline rate.
+   ===================================================================== */
+function conservationRates(s) {
+  return {
+    // Egg protection & hatching (one merged control).
+    predEgg:  baseline.predEgg  * (1 - s.egg),
+    poachEgg: baseline.poachEgg * (1 - s.egg),
+
+    // Light-pollution control (beach predators untouched).
+    light: baseline.light * (1 - s.light),
+    predH: baseline.predH,
+
+    // Boat-strike reduction; pollution & disease share one slider.
+    boat:   baseline.boat * (1 - s.boat),
+    poachM: baseline.poachM,
+    poll:   baseline.poll * (1 - s.poll),
+    dis:    baseline.dis  * (1 - s.poll),
+    aging:  baseline.aging,
+
+    // Uncontrolled downstream losses stay at baseline.
+    fert:    baseline.fert,
+    erosion: baseline.erosion,
+    obstr:   baseline.obstr,
+    dist:    baseline.dist
+  };
+}
+
+/* ---- Default slider positions (a realistic "good conservation" state)
+   egg 70%   -> egg loss 45% * 0.30 = 13.5%  ->  ~86% hatch (~865)
+   light 67% -> 30% * 0.33 ≈ 9.9%
+   boat 42%  -> 12% * 0.58 ≈ 7.0%
+   poll 40%  -> 10% * 0.60 = 6.0% each                                  */
+const SLIDER_DEFAULTS = { egg: 70, light: 67, boat: 42, poll: 40 };
+
+/* =====================================================================
+   WIRE UP THE SLIDERS
+   ===================================================================== */
+const SLIDER_IDS = ["s_egg", "s_light", "s_boat", "s_poll"];
+
+function syncFromSliders() {
+  const egg   = +document.getElementById("s_egg").value;    // 0..100
+  const light = +document.getElementById("s_light").value;  // 0..100
+  const boat  = +document.getElementById("s_boat").value;   // 0..100
+  const poll  = +document.getElementById("s_poll").value;   // 0..100
+
+  // Update the little value badges.
+  document.getElementById("v_egg").textContent   = egg + "%";
+  document.getElementById("v_light").textContent = light + "%";
+  document.getElementById("v_boat").textContent  = boat + "%";
+  document.getElementById("v_poll").textContent  = poll + "%";
+
+  // Build the conservation loss-rates from the baseline + reductions.
+  const rates = conservationRates({
+    egg:   egg / 100,
+    light: light / 100,
+    boat:  boat / 100,
+    poll:  poll / 100
+  });
+
+  renderCircle("chartConservation", rates);
+}
+
+// Attach listeners to every slider for instant redraw.
+SLIDER_IDS.forEach(id => {
+  document.getElementById(id).addEventListener("input", syncFromSliders);
+});
+
+// Reset button.
+document.getElementById("resetBtn").addEventListener("click", () => {
+  document.getElementById("s_egg").value   = SLIDER_DEFAULTS.egg;
+  document.getElementById("s_light").value = SLIDER_DEFAULTS.light;
+  document.getElementById("s_boat").value  = SLIDER_DEFAULTS.boat;
+  document.getElementById("s_poll").value  = SLIDER_DEFAULTS.poll;
+  syncFromSliders();
+});
+
+/* =====================================================================
+   INITIAL DRAW
+   ===================================================================== */
+renderCircle("chartBaseline", baseline);   // left = raw baseline rates
+syncFromSliders();                          // right = baseline + reductions
+
+/* =====================================================================
+   MAXIMISE TOGGLES
+   ---------------------------------------------------------------------
+   Each card has a button that expands it to fill the viewport (CSS
+   `.maximized`). The SVG rescales itself via its viewBox, so there's no
+   redraw to do. Esc also exits.
+   ===================================================================== */
+function setMaximized(card, on) {
+  card.classList.toggle("maximized", on);
+  const btn = card.querySelector(".fs-btn");
+  if (btn) btn.innerHTML = on ? "&#10005; Exit" : "&#9974; Fullscreen";
+}
+
+document.querySelectorAll(".fs-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const card = document.getElementById(btn.dataset.card);
+    setMaximized(card, !card.classList.contains("maximized"));
+  });
+});
+
+// Esc closes any maximised card.
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    document.querySelectorAll(".card.maximized").forEach(c => setMaximized(c, false));
+  }
+});
+</script>
+
+</body>
+</html>
